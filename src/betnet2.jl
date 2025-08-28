@@ -13,7 +13,7 @@ module betnet2
 
     export
         #data and tree definition    
-        TransNet,
+        main_function,
         Tborg
     include("betnet2_code.jl")
 
