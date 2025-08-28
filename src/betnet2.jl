@@ -1,6 +1,6 @@
 module betnet2
 
-    using Distributions
+    #using Distributions
     using BenchmarkTools
     using Base.Threads: @spawn, @threads
     using CSV
