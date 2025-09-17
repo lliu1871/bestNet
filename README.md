@@ -4,13 +4,13 @@ This Julia package implements a Bayesian model for reconstructing transmission n
 ## Installation
 ### Local installation
 1. Download the package from GitHub
-2. In the package mode, run "dev path-to-bestNet" to add the package in Julia.
+2. In the package mode, run *dev path-to-bestNet* to add the package in Julia.
 
 ### Installation from Github
-In the package mode, run "add https://github.com/lliu1871/bestNet" to add the package in Julia.
+In the package mode, run *add https://github.com/lliu1871/bestNet* to add the package in Julia.
 
 ### Global installation (unavailable)
-In the package mode, run "add bestNet" to add the package in Julia.
+In the package mode, run *add bestNet* to add the package in Julia.
 
 ## How to run the program
 The input datasets time_real_data.csv (temporal data) and SNP_real_data.csv (SNP distances) are available in the folder "data". To analyze the datasets, run the following Julia code
