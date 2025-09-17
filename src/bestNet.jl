@@ -112,5 +112,5 @@ module bestNet
 
     export transNetworkInference
 
-    include("bestNet.jl")
+    include("bestNet1.0.jl")
 end # module
