@@ -1,4 +1,4 @@
-# Bayesian Estimation of Transmission NETworks (betnet)
+# Bayesian EStimation of Transmission NETworks (bestNet)
 This Julia package implements a Bayesian model for reconstructing transmission networks in infectious diseases by integrating genomic and temporal data.
 
 ## Installation
