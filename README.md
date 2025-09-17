@@ -4,46 +4,27 @@ This Julia package implements a Bayesian model for reconstructing transmission n
 ## Installation
 ### Local installation
 1. Download the package from GitHub
-2. In the package mode, run "dev path-to-betnet" to add the package in Julia.
+2. In the package mode, run "dev path-to-bestNet" to add the package in Julia.
 
 ### Installation from Github
-In the package mode, run "add https://github.com/lliu1871/betnet" to add the package in Julia.
+In the package mode, run "add https://github.com/lliu1871/bestNet" to add the package in Julia.
 
 ### Global installation (unavailable)
-In the package mode, run "add betnet" to add the package in Julia.
+In the package mode, run "add bestNet" to add the package in Julia.
 
 ## How to run the program
-The input datasets time_real_data.csv (temporal data) and SNP_real_data.csv (SNP distances) are available in the folder "test". To analyze the datasets, run the following Julia code
+The input datasets time_real_data.csv (temporal data) and SNP_real_data.csv (SNP distances) are available in the folder "data". To analyze the datasets, run the following Julia code
 
-    using betnet
-    using DataFrames
-    using CSV
+    using bestNet
     
-    testDDD = Array(DataFrame(CSV.File("time_real_data.csv")))
-    testDD = testDDD[:,3:5]
-    testD = zeros(Float64,length(testDDD[:,1]),3)
-    testD[:,2:3] = float(testDD[:,2:3])/365
-    testD[:,1] = float(testDD[:,1])
-
-    #SNP Difference Data
-    DDD = Array(DataFrame(CSV.File("SNP_real_data.csv")))
-    DD = DDD[:,2:70]
-    D = float(DD)
-
-
-    #MCMC
-    @time rd_ppp_111_1 = TransNet(testD, D, 1.0e-6, 4411532.0, 2.0, 5E-7,0.3,5e-7, 5000,0,0)
-
-    inf_Net_rd_ppp_111_1 = DataFrame(rd_ppp_111_1[1],:auto)
-    Param_rd_ppp_111_1 = DataFrame(rd_ppp_111_1[4],:auto)
-    Tb_rd_ppp_111_1 = rd_ppp_111_1[2]
-
-    #Here input the inferred prediction ID to get the corresponding tb values
-    Latent_rd_ppp_111_1 = DataFrame(Tborg(Tb_rd_ppp_111_1,[2:1:69;], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 6, 7, 2, 1, 1, 13, 1, 19, 1, 16, 1, 1, 22, 7, 7, 27, 1, 1, 5, 5, 27, 27, 27, 27, 18, 37, 36, 34, 34, 37, 1, 27, 5, 1, 1, 1, 34, 22, 46, 27, 14, 27, 49, 36, 5, 27, 48, 23, 25, 38, 35, 1, 53, 19, 27, 30, 27]), :auto)
-
-    CSV.write("inf_NetID_rd1111.csv", inf_Net_rd_ppp_111_1)
-    CSV.write("Para_Net_rd1111.csv", Param_rd_ppp_111_1)
-    CSV.write("Latent_rd1111.csv", Latent_rd_ppp_111_1)
+    #Load the temporal and Genomic Data
+    @time transNetworkInference(tempfile="./bestNet/data/time_real_data.csv",SNPfile="./betnet2.0/data/SNP_real_data.csv",Contactfile="",genomeSize=4411532, itr_MCMC=1000000, burn_in=0,subsample=1000, outputfile="parameter_betnet_69.csv")
+    
+    # simulation data with/without contact network
+    @time transNetworkInference(tempfile="./bestNet/data/TemporalData1_100.csv",SNPfile="./betnet2.0/data/SNP1_100.csv",Contactfile="",genomeSize=1000000, itr_MCMC=1000000, burn_in=0,subsample=1000, outputfile="parameter_betnet_nonet.csv")
+    
+    @time transNetworkInference(tempfile="./bestNet/data/TemporalData1_100.csv",SNPfile="./betnet2.0/data/SNP1_100.csv",Contactfile="./betnet2.0/data/ContactProb1_100.csv",genomeSize=1000000, itr_MCMC=1000000, burn_in=0,subsample=1000, outputfile="parameter_betnet_net.csv")
+ 
 
 ## Resources
 - Support: We use GitHub for the development of the Julia package Distributions itself. For support and questions, please use the Julia Discourse forum. Also, for casual conversation and quick questions, there are the channels #helpdesk and #statistics in the official Julia chat (https://julialang.slack.com). To get an invitation, please visit https://julialang.org/slack/.
