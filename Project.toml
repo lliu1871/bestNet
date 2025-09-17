@@ -1,4 +1,32 @@
-name = "betnet2"
-uuid = "00c05709-a78c-4cc7-a247-e4011225fd05"
-authors = ["lliu <lliu1871@gmail.com>"]
-version = "0.1.0"
+name = "betnet"
+uuid = "7644471d-ba57-4356-88d5-7bc9e0d08f03"
+authors = ["Liang Liu", "Huimin Hu", "Jianing Xu"]
+version = "2.0.0-DEV"
+
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+FreqTables = "da1fdf0e-e0ff-5433-a45f-9bb5ff651cb1"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PkgTemplates = "14b8a8f1-9102-5b29-a752-f990bacb7fe1"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+
+[compat]
+BenchmarkTools = "1.5.0"
+CSV = "0.10.14"
+DataFrames = "1.7.0"
+Distributions = "0.25.112"
+FreqTables = "0.4.6"
+Random = "1.11.0"
+StatsBase = "0.34.3"
+julia = "1.6.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

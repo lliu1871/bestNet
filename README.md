@@ -1,17 +1,19 @@
 # Bayesian Estimation of Transmission NETworks (betnet)
-This Julia package is designed for implementing a Bayesian model to reconstruct transmission networks in infectious diseases. The Bayesian transmission model combines genomic and temporal data to reconstruct transmission networks for infectious diseases.
-
+This Julia package implements a Bayesian model for reconstructing transmission networks in infectious diseases by integrating genomic and temporal data.
 
 ## Installation
 ### Local installation
 1. Download the package from GitHub
-2. To add the local library betnet, run "] add path-to-betnet" in Julia.
+2. In the package mode, run "dev path-to-betnet" to add the package in Julia.
 
-### Global installation
+### Installation from Github
+In the package mode, run "add https://github.com/lliu1871/betnet" to add the package in Julia.
+
+### Global installation (unavailable)
 In the package mode, run "add betnet" to add the package in Julia.
 
 ## How to run the program
-The input datasets time_real_data.csv (temporal data) and SNP_real_data.csv (SNP distances) are available in the folder "test". To analyze a real dataset, run the following code
+The input datasets time_real_data.csv (temporal data) and SNP_real_data.csv (SNP distances) are available in the folder "test". To analyze the datasets, run the following Julia code
 
     using betnet
     using DataFrames
