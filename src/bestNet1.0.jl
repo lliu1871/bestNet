@@ -366,7 +366,7 @@ function mcmcAlgorithm(outputfile::String)
 
         if round == 1 || (round > mcmc.burnIn && round%mcmc.thin == 0)
             println("...... Iteration ",round,": Loglikelihood ",trunc(mcmc.logLikelihood,digits=2),", theta ",parameters.theta,", mu ",parameters.muRate,", inf_rate ",parameters.infectionRate)
-            CSV.write(outputfile,DataFrame(reshape(append!([string(round)],map(string,[mcmc.logLikelihood,mcmc.logPrior,parameters.theta,parameters.muRate,parameters.infectionRate]),data.caseID[parameters.Net_infID]), 1, :), :auto),append=true)
+            CSV.write(outputfile,DataFrame(reshape(append!([string(round)],map(string,[mcmc.logLikelihood,mcmc.logPrior,parameters.theta,parameters.muRate,parameters.infectionRate]),data.caseID[parameters.Net_infID],string.(parameters.InfTime)), 1, :), :auto),append=true)
         end
     end
 
@@ -414,8 +414,8 @@ function transNetworkInference(; tempfile::String, SNPfile::String, Contactfile:
     println("...... Initialization ............................ completed!\n")
 
     # output File
-    outputfile = isempty(outputfile) ? "parameter_betnet.csv" : outputfile
-    CSV.write(outputfile,DataFrame(reshape(append!(["iteration","logLikelihood","logPrior","theta","mutation_rate","infection_rate"],data.caseID), 1, :), :auto),writeheader = false)
+    outputfile = isempty(outputfile) ? "parameter_bestnet.csv" : outputfile
+    CSV.write(outputfile,DataFrame(reshape(append!(["iteration","logLikelihood","logPrior","theta","mutation_rate","infection_rate"],data.caseID, data.caseID .* "_InfTime"), 1, :), :auto),writeheader = false)
 
     # run MCMC
     mcmcAlgorithm(outputfile)
