@@ -58,9 +58,6 @@ for (i in 1:numsim) {
     write.csv(newdistance, file = paste("/Users/lliu/Library/CloudStorage/OneDrive-UniversityofGeorgia/Dropbox/Github/Julia/bestNet/data/", snpfile, sep = ""), row.names = FALSE)
 }
 
-# perform bestnet analysis in Julia
-
-#calculate accurracy
 for (i in 1:numsim) {
     inputfile <- paste("parameter", i, ".csv", sep = "")
     outbreak_est <- summary_bestnet(inputfile, plot = FALSE)$transmission
@@ -70,6 +67,9 @@ for (i in 1:numsim) {
 }
 mean(bestnet_accurracy)
 
+########################################
+# accurracy plot
+########################################
 plot.new()
 par(mfrow = c(1, 1))
 inf_rate <- 1:3

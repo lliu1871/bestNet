@@ -1,4 +1,10 @@
 library(ape)
+library(TransPhylo)
+library(igraph)
+library(networkDynamic)
+library(ndtv)
+library(network)
+library(rgexf)
 
 simulate_outbreak <- function(initial_infection_time = 0, infection_rate = 2.0, removal_rate = 2.0, latent_mean = 0.2, target_size = 50) {
   repeat {
@@ -41,9 +47,7 @@ simulate_outbreak <- function(initial_infection_time = 0, infection_rate = 2.0, 
 
       # Step 5: number of infections
       num_infections <- rpois(1, lambda = infection_rate * infectious_period)
-      # print(infectious_period)
-      # print(infection_rate)
-      # print(num_infections)
+
       # Step 6: secondary infection times only if less than 2*target_size
       if (num_infections > 0 && next_id < 2 * target_size) {
         secondary_times <- onsite_time + runif(num_infections, min = 0, max = infectious_period)
@@ -349,41 +353,138 @@ transmission_edges_matrixwiw <- function(matrix_wiw) {
   edges
 }
 
-summary_bestnet <- function(bestnet_output_file, burnin = 0.1, plot = TRUE) {
+summary_bestnet <- function(bestnet_output_file, burnin = 0.1, onsite_time, removal_time, plot = TRUE) {
   output <- read.csv(bestnet_output_file)
   numcase <- (dim(output)[2] - 6) / 2
+  transmission <- data.frame(
+    id = integer(numcase),
+    parent_id = integer(numcase),
+    infection_time = numeric(numcase),
+    latent_period = numeric(numcase),
+    onsite_time = numeric(numcase),
+    infectious_period = numeric(numcase),
+    removal_time = numeric(numcase),
+    infector_post_probability = numeric(numcase),
+    stringsAsFactors = FALSE
+  )
+  transmission$onsite_time <- onsite_time
+  transmission$removal_time <- removal_time
+
+  # convergence plots
   if (plot) {
     par(mfrow = c(2, 2))
     plot(output$logLikelihood, type = "l", xlab = "iteration", ylab = "loglikelihood")
     plot(output$theta, type = "l", xlab = "iteration", ylab = "theta")
     plot(output$mu, type = "l", xlab = "iteration", ylab = "mutation rate")
     plot(output$infection_rate, type = "l", xlab = "iteration", ylab = "infection rate")
+    par(mfrow=c(1,1))
   }
+
+  # parameter estimates
   post_sample <- output[(floor(dim(output)[1] * burnin) + 1):dim(output)[1], ]
   theta_est <- mean(post_sample$theta)
   mu_est <- mean(post_sample$mu)
   infrate_est <- mean(post_sample$infection_rate)
 
-  matwiw <- matrix(0, numcase, numcase)
+  # infector posterior probabilities
+  mat <- matrix(0, numcase, numcase)
   for (i in 2:numcase) {
     x <- table(post_sample[, 6 + i])
-    matwiw[as.numeric(names(x)), i] <- x / sum(x)
+    mat[as.numeric(names(x)), i] <- x / sum(x)
   }
-
-  outbreak_est <- outbreak[1:numcase, ]
-  colnames(outbreak_est)[8] <- "infector_post_probability"
-  outbreak_est[, c(1, 2, 8)] <- transmission_edges_matrixwiw(matwiw)
-  outbreak_est[, 1] <- as.numeric(outbreak_est[, 1])
-  outbreak_est[, 2] <- as.numeric(outbreak_est[, 2])
+  x <- transmission_edges_matrixwiw(mat)
+  transmission$id <- as.numeric(x[, 1])
+  transmission$parent_id <- as.numeric(x[, 2])
+  transmission$infector_post_probability <- x[, 3]
 
   inftime <- rep(0, numcase)
   for (j in 2:numcase) {
     infection_time <- post_sample[, 6 + numcase + j]
-    infector <- outbreak_est$parent_id[j]
+    infector <- transmission$parent_id[j]
     index <- which(post_sample[, 6 + j] == infector)
     inftime[j] <- mean(infection_time[index])
   }
-  outbreak_est$infection_time <- inftime
-  outbreak_est$latent_period <- outbreak_est$onsite_time - outbreak_est$infection_time
-  list(theta = theta_est, mu = mu_est, infrate = infrate_est, transmission = outbreak_est)
+  transmission$infection_time <- inftime
+  transmission$latent_period <- transmission$onsite_time - transmission$infection_time
+  transmission$infectious_period <- transmission$removal_time - transmission$onsite_time
+  list(theta = theta_est, mu = mu_est, infrate = infrate_est, transmission = transmission)
+}
+
+ttree_from_transmission <- function(outbreak, dateLastSample) {
+  outbreak$removal_time <- outbreak$removal_time - max(outbreak$removal_time) + dateLastSample
+  outbreak$onsite_time <- outbreak$removal_time - outbreak$infectious_period
+  outbreak$infection_time <- outbreak$onsite_time - outbreak$latent_period
+
+  ttree <- cbind(outbreak$infection_time, outbreak$removal_time, outbreak$parent_id)
+  ttree[1, 3] <- 0
+  name <- as.character(outbreak$id)
+  tree <- list(ttree = ttree, nam = name)
+  class(tree) <- "ttree"
+  tree
+}
+
+transplot <- function(transmission, style = 1, vertex_colors = rep("lightblue", length(transmission[, 1])), vertex_sizes = rep(12, length(transmission[, 1])), vertex_label_cex = rep(1.5, length(transmission[, 1])), dateLastSample = 2008) {
+  # Filter out zero-probability (and missing) edges for plotting only
+  edges_plot <- transmission
+  # treat NA as zero for plotting purposes
+  edges_plot$infector_post_probability[is.na(edges_plot$infector_post_probability)] <- 0
+  edges_plot <- edges_plot[edges_plot$infector_post_probability > 0, , drop = FALSE]
+  if (nrow(edges_plot) == 0) {
+    stop("No edges with prob > 0 to plot; skipping plotting.")
+  }
+  # convert NA infector (external) to "source"
+  edges_plot$parent_id[is.na(edges_plot$parent_id)] <- "source"
+  # create a graph
+  g <- graph_from_data_frame(edges_plot[, c("parent_id", "id")], directed = TRUE)
+  V(g)$name <- as.character(V(g)$name)
+  target_idx <- which(V(g)$name == "1")
+  if (length(target_idx) == 1) {
+    vertex_colors[target_idx] <- "grey"
+    vertex_sizes[target_idx] <- vertex_sizes[target_idx] + 2
+    vertex_label_cex[target_idx] <- vertex_label_cex[target_idx] + 0.2
+  }
+
+  if (style == 1) { # network styple plot
+    E(g)$weight <- round(edges_plot$infector_post_probability, digits = 2)
+    E(g)$label <- as.character(E(g)$weight)
+    E(g)$color <- ifelse(edges_plot$infector_post_probability < 0.5, "grey",
+                          ifelse(edges_plot$infector_post_probability < 0.75, "pink", "red"))
+    plot(
+      g,
+      vertex.size = vertex_sizes,
+      vertex.color = vertex_colors,
+      vertex.label.cex = vertex_label_cex,
+      edge.label = E(g)$label, # show edge attribute
+      edge.width = E(g)$weight, # edge width proportional to weight
+      edge.label.cex = 1.5,
+      edge.color = E(g)$color
+    )
+  } else if (style == 2) { # rooted-tree-style plot
+    if (requireNamespace("RColorBrewer", quietly = TRUE)) {
+      pal_vec <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues"))(100)
+    } else {
+      pal_vec <- colorRampPalette(c("lightblue", "yellow", "red"))(100)
+    }
+    edge_cols <- pal_vec[pmax(1, pmin(100, round(edges_plot$infector_post_probability * 99) + 1))]
+    edge_w <- pmax(0.5, edges_plot$infector_post_probability * 5)
+
+    # create layout: try to put "source" at the root if present
+    root_name <- if ("source" %in% V(g)$name) "source" else V(g)$name[1]
+    layout <- layout_as_tree(g, root = which(V(g)$name == root_name))
+    plot(
+      g,
+      layout = layout,
+      vertex.size = vertex_sizes,
+      vertex.color = vertex_colors,
+      vertex.label.cex = vertex_label_cex,
+      edge.width = edge_w,
+      edge.color = edge_cols
+    )
+  } else if (style == 3) { # timeline style plot
+    ttree <- ttree_from_transmission(transmission, dateLastSample = dateLastSample)
+    plot(ttree)
+  } else if (style == 4) { # transmission style plot
+    ttree <- ttree_from_transmission(transmission, dateLastSample = dateLastSample)  
+    plot(ttree, type = "detailed", w.shape = 10, w.scale = 0.1)
+  }
 }
