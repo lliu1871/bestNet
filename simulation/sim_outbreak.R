@@ -5,6 +5,7 @@ library(networkDynamic)
 library(ndtv)
 library(network)
 library(rgexf)
+library(phybase)
 
 simulate_outbreak <- function(initial_infection_time = 0, infection_rate = 2.0, removal_rate = 2.0, latent_mean = 0.2, target_size = 50) {
   repeat {
@@ -272,17 +273,11 @@ add_coalescent_distance <- function(pairwise_dist, theta) {
 # Build a neighbor-joining tree from the outbreak distance matrix
 # Requires package 'ape'
 # Returns a 'phylo' object (invisible) and optionally plots the tree
-build_nj_tree <- function(outbreak, root = 1, add_coalescence = 1, theta, mu, plot = FALSE, ...) {
+build_nj_tree <- function(outbreak, root = 1, plot = FALSE, ...) {
   if (!requireNamespace("ape", quietly = TRUE)) {
     stop("Package 'ape' is required for build_nj_tree. Please install it with install.packages('ape').")
   }
   pairwise_dist <- find_all_pairwise_distances(outbreak, return_matrix = TRUE)
-
-  # multipled by mutation rate
-  pairwise_dist <- pairwise_dist * mu
-  if (add_coalescence == 1) {
-    pairwise_dist <- add_coalescent_distance(pairwise_dist, theta)
-  }
 
   # convert to 'dist' object (rownames are ids)
   d <- stats::as.dist(pairwise_dist)
@@ -353,6 +348,39 @@ transmission_edges_matrixwiw <- function(matrix_wiw) {
   edges
 }
 
+sim_coaltree <- function(timetree, murate = 10^-4, theta = 10^-4) {
+    # add mutations
+    phytree <- timetree
+    phytree$edge.length <- phytree$edge.length * murate
+    phytreestring <- write.tree(phytree)
+
+    # calculate tip-root distances
+    spname <- phytree$tip.label
+    nspecies <- length(spname)
+    root <- nspecies + 1
+    root_to_tip <- dist.nodes(phytree)[1:nspecies, root]
+    diff_tip_length <- max(root_to_tip) - root_to_tip
+
+    # convert to a clock tree by adding to tips
+    clocktree <- phytree
+    index <- match(spname, clocktree$tip.label)
+    tip_index <- order(clocktree$edge[, 2])[index]
+    clocktree$edge.length[tip_index] <- clocktree$edge.length[tip_index] + diff_tip_length
+    
+    # use clocktree to simulate coalescent tree
+    sptree <- read.tree.nodes(write.tree(clocktree), name = spname)
+    nodematrix <- sptree$nodes
+    nodematrix[, 5] <- theta
+    genetree <- sim.coaltree.sp(dim(nodematrix)[1], nodematrix, numcase, seq = rep(1, numcase), name = spname)$gt
+    coaltree <- read.tree(text = genetree)
+
+    # convert back to original branch lengths by subtracting from tips
+    index <- match(spname, coaltree$tip.label)
+    tip_index <- order(coaltree$edge[, 2])[index]    
+    coaltree$edge.length[tip_index] <- coaltree$edge.length[tip_index] - diff_tip_length
+    return(coaltree)
+}
+
 summary_bestnet <- function(bestnet_output_file, burnin = 0.1, onsite_time, removal_time, plot = TRUE) {
   output <- read.csv(bestnet_output_file)
   numcase <- (dim(output)[2] - 6) / 2
@@ -377,7 +405,7 @@ summary_bestnet <- function(bestnet_output_file, burnin = 0.1, onsite_time, remo
     plot(output$theta, type = "l", xlab = "iteration", ylab = "theta")
     plot(output$mu, type = "l", xlab = "iteration", ylab = "mutation rate")
     plot(output$infection_rate, type = "l", xlab = "iteration", ylab = "infection rate")
-    par(mfrow=c(1,1))
+    par(mfrow = c(1, 1))
   }
 
   # parameter estimates
@@ -423,7 +451,7 @@ ttree_from_transmission <- function(outbreak, dateLastSample) {
   tree
 }
 
-transplot <- function(transmission, style = 1, vertex_colors = rep("lightblue", length(transmission[, 1])), vertex_sizes = rep(12, length(transmission[, 1])), vertex_label_cex = rep(1.5, length(transmission[, 1])), dateLastSample = 2008) {
+transplot <- function(transmission, style = 1, vertex_colors = rep("lightblue", length(transmission[, 1])), vertex_sizes = rep(12, length(transmission[, 1])), vertex_label_cex = rep(1.5, length(transmission[, 1])), showlabel = TRUE, dateLastSample = 2008) {
   # Filter out zero-probability (and missing) edges for plotting only
   edges_plot <- transmission
   # treat NA as zero for plotting purposes
@@ -443,32 +471,29 @@ transplot <- function(transmission, style = 1, vertex_colors = rep("lightblue", 
     vertex_sizes[target_idx] <- vertex_sizes[target_idx] + 2
     vertex_label_cex[target_idx] <- vertex_label_cex[target_idx] + 0.2
   }
+  E(g)$weight <- round(edges_plot$infector_post_probability, digits = 2)
+  E(g)$color <- ifelse(edges_plot$infector_post_probability < 0.5, "pink",
+    ifelse(edges_plot$infector_post_probability < 0.75, "#a1a112", "#6b1a1a")
+  )
+  if (showlabel) {
+    E(g)$label <- as.character(E(g)$weight)
+  } else {
+    E(g)$label <- ""
+  }
 
   if (style == 1) { # network styple plot
-    E(g)$weight <- round(edges_plot$infector_post_probability, digits = 2)
-    E(g)$label <- as.character(E(g)$weight)
-    E(g)$color <- ifelse(edges_plot$infector_post_probability < 0.5, "grey",
-                          ifelse(edges_plot$infector_post_probability < 0.75, "pink", "red"))
     plot(
       g,
       vertex.size = vertex_sizes,
       vertex.color = vertex_colors,
       vertex.label.cex = vertex_label_cex,
       edge.label = E(g)$label, # show edge attribute
-      edge.width = E(g)$weight, # edge width proportional to weight
-      edge.label.cex = 1.5,
+      # edge.width = E(g)$weight, # edge width proportional to weight
+      # edge.label.cex = 1.5,
       edge.color = E(g)$color
     )
+    legend("topright", legend = c("< 0.5", "0.5 - 0.75", "> 0.75"), col = c("pink", "#a1a112", "#6b1a1a"), pch = 19, bty = "n", cex = 1.5)
   } else if (style == 2) { # rooted-tree-style plot
-    if (requireNamespace("RColorBrewer", quietly = TRUE)) {
-      pal_vec <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues"))(100)
-    } else {
-      pal_vec <- colorRampPalette(c("lightblue", "yellow", "red"))(100)
-    }
-    edge_cols <- pal_vec[pmax(1, pmin(100, round(edges_plot$infector_post_probability * 99) + 1))]
-    edge_w <- pmax(0.5, edges_plot$infector_post_probability * 5)
-
-    # create layout: try to put "source" at the root if present
     root_name <- if ("source" %in% V(g)$name) "source" else V(g)$name[1]
     layout <- layout_as_tree(g, root = which(V(g)$name == root_name))
     plot(
@@ -477,14 +502,14 @@ transplot <- function(transmission, style = 1, vertex_colors = rep("lightblue", 
       vertex.size = vertex_sizes,
       vertex.color = vertex_colors,
       vertex.label.cex = vertex_label_cex,
-      edge.width = edge_w,
-      edge.color = edge_cols
+      edge.color = E(g)$color
     )
+    legend("topright", legend = c("< 0.5", "0.5 - 0.75", "> 0.75"), col = c("pink", "#a1a112", "#6b1a1a"), pch = 19, bty = "n", cex = 1.5)
   } else if (style == 3) { # timeline style plot
     ttree <- ttree_from_transmission(transmission, dateLastSample = dateLastSample)
     plot(ttree)
   } else if (style == 4) { # transmission style plot
-    ttree <- ttree_from_transmission(transmission, dateLastSample = dateLastSample)  
+    ttree <- ttree_from_transmission(transmission, dateLastSample = dateLastSample)
     plot(ttree, type = "detailed", w.shape = 10, w.scale = 0.1)
   }
 }

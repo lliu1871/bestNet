@@ -6,21 +6,23 @@ source("sim_outbreak.R")
 set.seed(42)
 
 # simulate outbreak
-outbreak <- simulate_outbreak(infection_rate = 3.0, removal_rate = 3.0, target_size = 5)
+outbreak <- simulate_outbreak(infection_rate = 3.0, removal_rate = 3.0, target_size = 10)
 numcase <- nrow(outbreak)
+
+# a tree plot for true transmissions
 ttree_true <- ttree_from_transmission(outbreak, dateLastSample = 2008)
 plot(ttree_true)
-plot(ttree_true, type = "detailed", w.shape=10, w.scale=0.1)
+plot(ttree_true, type = "detailed", w.shape = 10, w.scale = 0.1)
 
-# a time phylogenetic tree of the first 50 cases generated from outbreak
-timetree <- build_nj_tree(outbreak, add_coalescence = FALSE, theta = 10^-4, mu = 1, plot = TRUE)
+# a time phylogenetic tree where split times are the infection times and tips are removal times
+timetree <- build_nj_tree(outbreak, plot = TRUE)
 
-# simulate DNA sequences
-murate <- 10^-4
-phytree <- timetree
-phytree$edge.length <- phytree$edge.length * murate
-phytreestring <- write.tree(phytree)
-write(phytreestring, "tree.tre")
+# simulate a coalescent tree in mutation units based on the time tree
+phytree <- sim_coaltree(timetree, theta = 1e-5, murate = 1e-4)
+plot(phytree)
+
+# simulate sequences based on the coalescent tree
+write.tree(phytree, file = "tree.tre")
 system("seq-gen -mHKY -l100000 tree.tre > seq")
 
 # calculate snp distances
@@ -70,9 +72,8 @@ ttree_est <- ttree_from_transmission(outbreak_est, dateLastSample = 2008)
 plot(ttree_est)
 plot(ttree_est, type = "detailed", w_shape, w_scale)
 
-par(mfrow = c(2, 2))
-transplot(outbreak_est, style = 1, vertex_sizes = rep(5, 50), vertex_label_cex = rep(0.7, 50))
-transplot(outbreak_est, style = 2, vertex_sizes = rep(7, 50), vertex_label_cex = rep(0.7, 50))
+transplot(outbreak_est, showlabel = F, style = 1, vertex_sizes = rep(5, 50), vertex_label_cex = rep(0.7, 50))
+transplot(outbreak_est, showlabel = F, style = 2, vertex_sizes = rep(7, 50), vertex_label_cex = rep(0.7, 50))
 transplot(outbreak_est, style = 3, vertex_sizes = rep(7, 50), vertex_label_cex = rep(0.7, 50))
 transplot(outbreak_est, style = 4, vertex_sizes = rep(7, 50), vertex_label_cex = rep(0.7, 50))
 
