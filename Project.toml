@@ -1,7 +1,7 @@
 name = "bestNet"
 uuid = "8644471d-ba57-4356-88d5-7bc9e0d08f03"
-authors = ["Liang Liu", "Huimin Hu", "Jianing Xu"]
 version = "1.0.0"
+authors = ["Liang Liu", "Huimin Hu", "Jianing Xu"]
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
@@ -21,7 +21,9 @@ CSV = "0.10.14"
 DataFrames = "1.7.0"
 Distributions = "0.25.112"
 FreqTables = "0.4.6"
+LinearAlgebra = "1.11.0"
 Random = "1.11.0"
+Statistics = "1.11.1"
 StatsBase = "0.34.3"
 julia = "1.6.7"
 

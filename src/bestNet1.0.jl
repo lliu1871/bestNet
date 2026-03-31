@@ -272,7 +272,7 @@ function moveInfector()
     loglike_old = LoglikelihoodSingleEvent(individual_update, infector_old, InfTime_old, parameters.theta, parameters.muRate, parameters.genomeSize)
     loglike_new = LoglikelihoodSingleEvent(individual_update, infector_new, InfTime_new, parameters.theta, parameters.muRate, parameters.genomeSize)
     diff_loglikelihood = loglike_new - loglike_old
-
+ 
     # logprior ratio new/old
     if infector_old == infector_new
         latent_time_old = data.tempData[individual_update,1] - InfTime_old
@@ -282,7 +282,14 @@ function moveInfector()
                 error("Error: negative latent time!")
             end
         end
-        diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+
+        if latent_time_new == 0.0
+            diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), 1.0e-10)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+        elseif latent_time_old == 0.0
+             diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), 1.0e-10))
+        else
+            diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+        end
     else
         latent_time_old = data.tempData[individual_update,1] - InfTime_old
         latent_time_new = data.tempData[individual_update,1] - InfTime_new 
@@ -291,7 +298,14 @@ function moveInfector()
                 error("Error: negative latent time!")
             end
         end
-        diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+        if latent_time_new == 0.0
+            diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), 1.0e-10)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+        elseif latent_time_old == 0.0
+             diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), 1.0e-10))
+        else
+            diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
+        end
+        #diff_logprior = log(pdf(Chisq(parameters.latent_priorMean), latent_time_new)) - log(pdf(Chisq(parameters.latent_priorMean), latent_time_old))
         diff_logprior += log(parameters.ContactProb[individual_update,infector_new]) - log(parameters.ContactProb[individual_update,infector_old])   
         diff_logprior += log(pdf(Geometric(parameters.removalRate/(parameters.infectionRate+parameters.removalRate)),parameters.Child_Vec[infector_new]+1)) +
                      log(pdf(Geometric(parameters.removalRate/(parameters.infectionRate+parameters.removalRate)),parameters.Child_Vec[infector_old]-1)) -
@@ -349,9 +363,15 @@ function mcmcAlgorithm(outputfile::String)
                 error("Error: negative latent time!")
             end
         end
-        mcmc.logPrior += log(pdf(Chisq(parameters.latent_priorMean), latent_time)) - log(cdf(Chisq(parameters.latent_priorMean), parameters.InfectionPeriod[infID,j])) + log(parameters.ContactProb[infID,j])
+
+        # if latent_time == 0, we use a small value 1.0e-10 to calculate the logprior to avoid log(0)
+        if(latent_time == 0.0)
+            mcmc.logPrior += log(pdf(Chisq(parameters.latent_priorMean), 1.0e-10)) - log(cdf(Chisq(parameters.latent_priorMean), 1.0e-10)) + log(parameters.ContactProb[infID,j])
+        else
+            mcmc.logPrior += log(pdf(Chisq(parameters.latent_priorMean), latent_time)) - log(cdf(Chisq(parameters.latent_priorMean), parameters.InfectionPeriod[infID,j])) + log(parameters.ContactProb[infID,j])
+        end      
     end
-    
+
     for round in 1:mcmc.numIter       
         r_random = rand()    
         if r_random <= 0.1
